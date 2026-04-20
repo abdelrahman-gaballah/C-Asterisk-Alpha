@@ -22,6 +22,13 @@ class TokenType(Enum):
     FUNC = "FUNC"
     RETURN = "RETURN"
     EOF = "EOF"
+    
+    #NEW TOKENS
+    COLON = ":"
+    COMMA = ","
+    LBRACKET = "["
+    RBRACKET = "]"
+    ARROW = "->"
 
 class Token:
     def __init__(self, type, value = None):

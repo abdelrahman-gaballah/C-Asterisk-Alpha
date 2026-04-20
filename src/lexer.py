@@ -69,8 +69,12 @@ class Lexer:
                 self.advance()
                 return Token(TokenType.PLUS)
             
+            # UPDATED: Now handles both "-" and "->"
             if self.current_char == "-":
                 self.advance()
+                if self.current_char == ">":
+                    self.advance()
+                    return Token(TokenType.ARROW)
                 return Token(TokenType.MINUS)
             
             if self.current_char == "*":
@@ -108,6 +112,23 @@ class Lexer:
             if self.current_char == "}":
                 self.advance()
                 return Token(TokenType.RBRACE)
+            
+            # --- NEW SYMBOLS ---
+            if self.current_char == ":":
+                self.advance()
+                return Token(TokenType.COLON)
+                
+            if self.current_char == ",":
+                self.advance()
+                return Token(TokenType.COMMA)
+                
+            if self.current_char == "[":
+                self.advance()
+                return Token(TokenType.LBRACKET)
+                
+            if self.current_char == "]":
+                self.advance()
+                return Token(TokenType.RBRACKET)
             
             raise Exception(f"Illegal Character: {self.current_char}")
 
