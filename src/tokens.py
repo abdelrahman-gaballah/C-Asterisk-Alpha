@@ -6,7 +6,6 @@ class TokenType(Enum):
     NUMBER = "NUMBER"
     FLOAT = "FLOAT"
     STRING = "STRING"
-    BOOL = "BOOL"
     TRUE = "TRUE"
     FALSE = "FALSE"
     PLUS = "+"
@@ -41,8 +40,6 @@ class TokenType(Enum):
     DOT = "."
     CLASS = "CLASS"
     IMPORT = "IMPORT"
-    FROM = "FROM"
-    AS = "AS"
 
 class Token:
     def __init__(self, type, value=None, line=None, column=None):

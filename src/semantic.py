@@ -26,10 +26,14 @@ BUILTINS = {
     "print": "void",
     "len": "int",
     "exp": "float",
-    "sqrt": "float",  
-    "log": "float",   
-    "pow": "float",   
+    "sqrt": "float",
+    "log": "float",
+    "pow": "float",
     "load_csv": "[float]",
+    "free": "void",
+    "abs": "abs",
+    "round": "float",
+    "get_time": "float",
 }
 
 def normalize_type(t):
@@ -80,6 +84,12 @@ class SymbolTable:
                 return value["type"] if isinstance(value, dict) else value
 
         self.errors.add(SemanticError(f"Variable '{name}' not declared"))
+        return None
+
+    def lookup_raw(self, name):
+        for scope in reversed(self.scopes):
+            if name in scope:
+                return scope[name]
         return None
 
 
@@ -185,6 +195,9 @@ class SemanticAnalyzer:
         elif isinstance(node, MemberAccess):
             return self.visit_member_access(node)
 
+        elif isinstance(node, Import):
+            return None
+
         elif isinstance(node, ExpressionStatement):
             return self.visit(node.expression)
         
@@ -213,10 +226,13 @@ class SemanticAnalyzer:
             return
 
         if var_type != value_type:
-            self.errors.add(SemanticError(
-                f"Type mismatch: expected {var_type} but got {value_type}"
-            ))
-            return
+            if self._can_promote(value_type, var_type):
+                pass
+            else:
+                self.errors.add(SemanticError(
+                    f"Type mismatch: expected {var_type} but got {value_type}"
+                ))
+                return
 
         self.symbol_table.declare(node.name, var_type)
 
@@ -231,7 +247,7 @@ class SemanticAnalyzer:
             
         value_type = self.visit(node.value)
 
-        if var_type != value_type:
+        if var_type != value_type and not self._can_promote(value_type, var_type):
             self.errors.add(SemanticError(
                 f"Type mismatch in assignment: {var_type} vs {value_type}"
             ))
@@ -239,6 +255,9 @@ class SemanticAnalyzer:
     # -----------------------------
     # BINARY OP
     # -----------------------------
+    def _can_promote(self, from_type, to_type):
+        return from_type == "int" and to_type == "float"
+
     def visit_binary_op(self, node):
         left = self.visit(node.left)
         right = self.visit(node.right)
@@ -247,18 +266,41 @@ class SemanticAnalyzer:
             return None
 
         if left != right:
-            self.errors.add(SemanticError(f"Type mismatch: {left} vs {right}"))
+            if self._can_promote(left, right):
+                promoted = right
+            elif self._can_promote(right, left):
+                promoted = left
+            elif left == "string" and right == "string":
+                promoted = "string"
+            else:
+                self.errors.add(SemanticError(f"Type mismatch: {left} vs {right}"))
+                return None
+        else:
+            promoted = left
+
+        if node.op == TokenType.PLUS:
+            if promoted in ("int", "float", "string"):
+                return promoted
+            self.errors.add(SemanticError("Invalid types for +"))
             return None
 
-        if node.op in (TokenType.PLUS, TokenType.MINUS,
-                       TokenType.MULTIPLY, TokenType.DIVIDE):
-            if left not in ("int", "float"):
+        if node.op in (TokenType.MINUS, TokenType.MULTIPLY, TokenType.DIVIDE):
+            if promoted not in ("int", "float"):
                 self.errors.add(SemanticError("Invalid arithmetic types"))
                 return None
-            return left
+            return promoted
 
-        if node.op in (TokenType.GREATER, TokenType.LESS, TokenType.EQUAL_EQUAL):
+        if node.op in (TokenType.GREATER, TokenType.LESS, TokenType.GREATER_EQUAL, TokenType.LESS_EQUAL):
+            if promoted not in ("int", "float"):
+                self.errors.add(SemanticError("Comparison requires numeric types"))
+                return None
             return "bool"
+
+        if node.op in (TokenType.EQUAL_EQUAL, TokenType.NOT_EQUAL):
+            if promoted in ("int", "float", "string", "bool"):
+                return "bool"
+            self.errors.add(SemanticError("Invalid types for =="))
+            return None
 
         self.errors.add(SemanticError("Unknown operator"))
         return None
@@ -318,11 +360,11 @@ class SemanticAnalyzer:
     # FUNCTION
     # -----------------------------
     def visit_function(self, node):
-        self.symbol_table.declare(node.name, {
+        self.symbol_table.scopes[-1][node.name] = {
             "type": "function",
             "return": node.return_type,
             "params": node.params
-        })
+        }
 
         self.symbol_table.enter_scope()
         self.in_function = True
@@ -353,8 +395,9 @@ class SemanticAnalyzer:
 
         # 2. Builtins
         if node.name in BUILTINS:
-            for a in node.args:
-                self.visit(a)
+            arg_types = [self.visit(a) for a in node.args]
+            if node.name == "abs":
+                return arg_types[0] if arg_types else "int"
             return BUILTINS[node.name]
 
         # 3. Class Constructors
@@ -364,11 +407,7 @@ class SemanticAnalyzer:
             return node.name
 
         # 4. Standard Functions
-        func = None
-        for scope in reversed(self.symbol_table.scopes):
-            if node.name in scope:
-                func = scope[node.name]
-                break
+        func = self.symbol_table.lookup_raw(node.name)
 
         if isinstance(func, dict) and func.get("type") == "function":
             params = func["params"]

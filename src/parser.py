@@ -176,11 +176,18 @@ PRECEDENCE = {
 # =========================
 # PARSER
 # =========================
+STMT_BOUNDARY = {
+    TokenType.LET, TokenType.PRINT, TokenType.IF, TokenType.ELSE,
+    TokenType.WHILE, TokenType.FOR, TokenType.RETURN, TokenType.FUNC,
+    TokenType.CLASS, TokenType.IMPORT, TokenType.RBRACE, TokenType.EOF,
+}
+
 class Parser:
     def __init__(self, tokens):
         self.tokens = tokens
         self.pos = 0
         self.current = tokens[self.pos]
+        self.errors = []
 
     def advance(self):
         self.pos += 1
@@ -190,14 +197,22 @@ class Parser:
         if self.current.type == token_type:
             self.advance()
         else:
-            raise ParserError(
+            self.errors.append(ParserError(
                 f"Expected {token_type}, got {self.current.type}",
-                self.current.line,
-                self.current.column
-            )
+                self.current.line, self.current.column
+            ))
+            self.sync()
 
     def peek(self):
         return self.tokens[self.pos + 1] if self.pos + 1 < len(self.tokens) else None
+
+    def sync(self):
+        if self.current.type == TokenType.EOF:
+            return
+        while self.current.type not in STMT_BOUNDARY:
+            self.advance()
+            if self.current.type == TokenType.EOF:
+                return
 
     # =========================
     # ENTRY
@@ -205,7 +220,13 @@ class Parser:
     def parse(self):
         statements = []
         while self.current.type != TokenType.EOF:
-            statements.append(self.statement())
+            try:
+                stmt = self.statement()
+                if stmt is not None:
+                    statements.append(stmt)
+            except ParserError as e:
+                self.errors.append(e)
+                self.sync()
         return Program(statements)
 
     # =========================

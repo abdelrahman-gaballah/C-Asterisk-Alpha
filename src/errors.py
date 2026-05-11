@@ -2,16 +2,12 @@ class CompilerError(Exception):
     def __init__(self, message, line=None, column=None):
         self.line = line
         self.column = column
-
-        # Human-readable message
+        loc = ""
         if line is not None and column is not None:
-            full_message = f"The error is: {message} | Located at Line {line}, Column {column}"
+            loc = f" [line {line}:{column}]"
         elif line is not None:
-            full_message = f"The error is: {message} | Located at Line {line}"
-        else:
-            full_message = f"The error is: {message}"
-
-        super().__init__(full_message)
+            loc = f" [line {line}]"
+        super().__init__(f"{message}{loc}")
 
 class LexerError(CompilerError):
     pass

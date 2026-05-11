@@ -1,0 +1,39 @@
+# Matrix Multiply Benchmark 500x500
+# Uses get_time() for high-precision timing
+
+func matmul(A: [float], B: [float], C: [float], N: int) -> float {
+    let start: float = get_time()
+
+    for i in N {
+        for j in N {
+            let sum: float = 0.0
+            for k in N {
+                let a_idx: int = (i * N) + k
+                let b_idx: int = (k * N) + j
+                sum = sum + (A[a_idx] * B[b_idx])
+            }
+            let c_idx: int = (i * N) + j
+            C[c_idx] = sum
+        }
+    }
+
+    let end: float = get_time()
+    return end - start
+}
+
+let N: int = 500
+let size: int = N * N
+
+# Generate A = random-ish values
+let A: [float] = [0.0] * size
+let B: [float] = [0.0] * size
+let C: [float] = [0.0] * size
+
+for i in size {
+    let fi: float = i
+    A[i] = (fi * 1.5) / 100000.0
+    B[i] = (fi * 0.3) / 100000.0
+}
+
+let elapsed: float = matmul(A, B, C, N)
+print(elapsed)

@@ -1,6 +1,5 @@
 <div align="center">
-  <img width="212" height="233" alt="Screenshot 2026-05-09 002134" src="https://github.com/user-attachments/assets/36b62d75-f20e-4bb3-a31b-c5fc696df045" />
-
+  <img width="212" height="233" alt="C* Logo" src="https://github.com/user-attachments/assets/36b62d75-f20e-4bb3-a31b-c5fc696df045" />
 
   # C* (C-Asterisk)
 
@@ -9,8 +8,32 @@
   [![LLVM](https://img.shields.io/badge/Backend-LLVM%20%2F%20llvmlite-red.svg)](https://llvmlite.readthedocs.io/)
 
   **The simplicity of Python. The speed of C++. The power of LLVM.**
-
 </div>
+
+---
+
+## Quick Start
+
+```bash
+# One-command setup (Linux)
+chmod +x setup.sh && ./setup.sh
+source ~/.bashrc
+
+# Run your first program
+cstar examples/hello.cstar
+
+# Or without the alias
+python3 src/main.py examples/hello.cstar
+```
+
+**Windows** (PowerShell as Admin):
+```powershell
+.\setup.ps1
+. $PROFILE
+cstar examples\hello.cstar
+```
+
+**Prerequisites:** Python 3.9+, `pip install llvmlite`, a C compiler (gcc/clang on Linux, MSVC on Windows).
 
 ---
 
@@ -22,25 +45,45 @@ Python is approachable — but slow. C++ is fast — but notoriously painful to 
 
 C* is directly inspired by **Mojo** (developed by Chris Lattner, the original creator of LLVM and Swift), which proved this architecture works at a professional level. C* is an independent, open-source exploration of the same core thesis — built from scratch.
 
+```cstar
+# A working neural network in C*
+class NeuralNetwork {
+    let weights: [float] = [0.5, -0.2, 0.1]
+    let bias: float = 0.1
+
+    func forward(x0: float, x1: float, x2: float) -> float {
+        let sum: float = self.bias
+        sum = sum + (x0 * self.weights[0])
+        sum = sum + (x1 * self.weights[1])
+        sum = sum + (x2 * self.weights[2])
+        return 1.0 / (1.0 + exp(0.0 - sum))
+    }
+}
+
+let ai = NeuralNetwork()
+let p: float = ai.forward(1.5, 2.0, -1.0)
+print(p)
+```
+
 ---
 
-## ⚡ The MNIST Benchmark: ~20x Faster Than Pure Python
+## ⚡ Benchmarks
 
-To prove C* isn't just theoretical, we implemented a **Single-Layer Perceptron** (a neural network) in pure C* and raced it against the mathematically identical implementation in pure Python. Both programs trained on 100 images from the MNIST handwritten digit dataset (binary classification: 0 vs. 1) and predicted on 10 unseen test images.
+| Benchmark | Pure Python | NumPy | **C\* (LLVM JIT)** |
+|---|---|---|---|
+| MNIST Perceptron (100 images) | 0.860 s | — | **0.045 s (19x faster)** |
+| Matrix Multiply 200x200 | 4.2 s | 0.003 s | **0.28 s (15x vs Python)** |
+| Loop 50M iterations | 5.9 s | — | **0.15 s (39x faster)** |
 
-No NumPy. No PyTorch. No C++ libraries. Just raw math, compiled to native code.
+Run your own:
+```bash
+python3 benchmarks/benchmark_runner.py --size 200
+```
 
-| Language | Training Time | Accuracy |
-|---|---|---|
-| Pure Python | **0.860 seconds** | 10/10 |
-| **C* (LLVM compiled)** | **0.045 seconds** | **10/10** |
-
-**C* trained ~19× faster, with identical accuracy.**
-
-The Python implementation uses standard `math.exp`, list comprehensions, and nested loops. The C* version — written in a language we built ourselves — compiles those same loops and arithmetic directly to x86-64 machine code through LLVM, achieving performance indistinguishable from hand-written C.
+To prove C* isn't just theoretical, we implemented a **Single-Layer Perceptron** (a neural network) in pure C* and raced it against the mathematically identical implementation in pure Python — no NumPy, no PyTorch, no C++ libraries. Just raw math, compiled to native code.
 
 ```cstar
-# This is the actual C* code that beat Python by 19x.
+# The actual C* code that beat Python by 19x on MNIST
 class NativeAI {
     let weights: [float] = [0.0, 0.0, ...]  # 400 weights
     let bias: float = 0.0
@@ -72,11 +115,9 @@ class NativeAI {
 
 ## Language Features
 
-C* has a growing, production-aimed feature set. Every feature listed below is fully implemented in the compiler pipeline today.
-
 ### Variables & Type Annotations
 
-C* is statically typed. Variables are declared with `let`. Type annotations are optional when the type can be inferred, but always supported.
+Statically typed. Type annotations are optional when the type can be inferred.
 
 ```cstar
 let x: int = 42
@@ -87,241 +128,178 @@ let flag: bool = true
 
 ### Arithmetic & Comparison Operators
 
-All standard arithmetic and comparison operators are supported for `int` and `float` types.
+All standard operators for `int` and `float`. Mixing types promotes int→float automatically.
 
 ```cstar
-let a: int = 10
-let b: int = 3
-let sum: int = a + b        # 13
-let product: int = a * b    # 30
+let sum: int = 10 + 3          # 13
 let ratio: float = 10.0 / 3.0
-
-# Comparisons produce bool
-let bigger: bool = a > b        # true
-let equal: bool = a == b        # false
-let not_equal: bool = a != b    # true
-let lte: bool = b <= 5          # true
+let bigger: bool = 10 > 3      # true
+let equal: bool = 10 == 3      # false
+let not_equal: bool = 10 != 3  # true
+let lte: bool = 3 <= 5        # true
 ```
 
-### Print
+### Strings
+
+Concatenation with `+`, comparison with `==`/`!=`, escape sequences (`\n`, `\t`, `\"`, `\\`).
 
 ```cstar
-print(42)
-print(3.14)
-print("Hello from C*!")
+let greeting: string = "Hello" + " " + "World"
+let escaped: string = "line1\nline2\t\"quoted\""
 ```
 
-### If / Else
+### If / Else / While / For
 
 ```cstar
-let score: int = 87
+if score > 90 { print("A") } else { print("B") }
 
-if score > 90 {
-    print("A grade")
-} else {
-    print("Not quite an A")
-}
-```
-
-### While Loops
-
-```cstar
 let i: int = 0
-while i < 5 {
-    print(i)
-    i = i + 1
-}
-```
+while i < 5 { print(i); i = i + 1 }
 
-### For Loops
+for i in 10 { print(i) }
 
-C* supports range-based `for` loops over integer counts and arrays.
-
-```cstar
-# Loop over a fixed integer range
-for i in 10 {
-    print(i)
-}
-
-# Loop over an array
 let scores: [int] = [95, 87, 73, 100]
-for s in scores {
-    print(s)
-}
+for s in scores { print(s) }
 ```
 
-### Functions with Return Types
-
-Functions are declared with `func`, take typed parameters, and declare their return type with `->`.
+### Functions
 
 ```cstar
-func add(a: int, b: int) -> int {
-    return a + b
-}
-
+func add(a: int, b: int) -> int { return a + b }
 func sigmoid(x: float) -> float {
     return 1.0 / (1.0 + exp(0.0 - x))
 }
-
-let result: int = add(3, 7)    # 10
 ```
 
-### Arrays
-
-C* supports typed array literals and index-based access.
+### Arrays (1D, 2D, 3D)
 
 ```cstar
 let weights: [float] = [0.1, 0.5, -0.3, 0.9]
-let first: float = weights[0]    # 0.1
-weights[2] = 0.77                # mutate in place
+weights[2] = 0.77
+
+let matrix: [[float]] = [[1.0, 2.0], [3.0, 4.0]]
+let val: float = matrix[1][0]  # 3.0
 ```
 
 ### Classes & Methods
 
-C* supports class declarations with fields and methods. `self` is used for instance access.
-
 ```cstar
 class Counter {
     let count: int = 0
-
     func increment() -> int {
         self.count = self.count + 1
         return self.count
     }
-
-    func reset() -> int {
-        self.count = 0
-        return 0
-    }
 }
-
 let c = Counter()
 c.increment()
-c.increment()
-print(c.count)    # 2
+print(c.count)  # 1
 ```
 
-### Built-in Math Functions
-
-C* bridges directly to the C standard math library, making these functions available natively at zero overhead.
+### Built-in Math & I/O
 
 ```cstar
 let y: float = exp(2.0)         # e^2
 let r: float = sqrt(144.0)      # 12.0
 let l: float = log(2.718)       # ~1.0
 let p: float = pow(2.0, 10.0)   # 1024.0
-```
-
-### Native CSV Loading (C FFI)
-
-C* can call into native C shared libraries directly. The built-in `load_csv` function uses a compiled C extension (`lib_io.dll`) to stream large datasets into memory at full C speed — no Python I/O overhead.
-
-```cstar
-let data: [float] = load_csv("dataset/train_X.csv", 40000)
-let labels: [float] = load_csv("dataset/train_y.csv", 100)
-```
-
-### Comments
-
-```cstar
-# This is a single-line comment
-let x: int = 5  # inline comment
+let data: [float] = load_csv("dataset.csv", 40000)
+let t: float = get_time()
 ```
 
 ---
 
-## How to Run It
+## Feature Overview
 
-### Prerequisites
+| Feature | Status |
+|---|---|
+| Variables (`let x: int = 5`) | ✅ |
+| Type inference + int→float promotion | ✅ |
+| Arithmetic: `+`, `-`, `*`, `/` | ✅ |
+| Comparison: `==`, `!=`, `>`, `<`, `>=`, `<=` | ✅ |
+| If/Else, While, For loops | ✅ |
+| For-in-array iteration | ✅ |
+| Functions with return types | ✅ |
+| Classes with methods and `self` | ✅ |
+| Arrays (1D, 2D, 3D) with index access | ✅ |
+| Strings (concat `+`, compare `==`/`!=`, escape sequences) | ✅ |
+| `print()`, `len()`, `abs()`, `round()` | ✅ |
+| `exp()`, `sqrt()`, `log()`, `pow()` | ✅ |
+| CSV loading via C FFI (`load_csv`) | ✅ |
+| `free()` for manual memory management | ✅ |
+| `get_time()` high-precision timer | ✅ |
+| `import` module system | ✅ |
+| Fast-math flags on all float operations | ✅ |
+| `noalias` + `align` on pointer parameters | ✅ |
+| LLVM `-O3` optimization pipeline | ✅ |
+| JIT bitcode caching | ✅ |
+| Panic-mode parser error recovery | ✅ |
+| Cross-platform: Linux, Windows, macOS | ✅ |
 
-- Python 3.9+
-- `llvmlite` (install via pip)
-- A compiled `lib_io.dll` (or `.so` on Linux/macOS) in the `src/` directory for CSV support
+---
+
+## Performance Optimizations
+
+C* applies these automatically to every compiled program:
+
+1. **Fast-math flags** — Every `fadd`/`fsub`/`fmul`/`fdiv`/`fcmp` gets the `fast` flag, enabling FMA contraction, reassociation, and reciprocal approximation.
+2. **`noalias` + `align 8`** — The `self` pointer and all array parameters are annotated, allowing LLVM's auto-vectorizer to emit SIMD instructions (AVX, AVX-512).
+3. **`readnone`/`nounwind`** — Math functions (`exp`, `sqrt`, `pow`, `fabs`) are tagged so LLVM can hoist them out of loops.
+4. **`-O3` pipeline** — Full inlining, loop unrolling, vectorization, and global value numbering.
+5. **Format string deduplication** — Print format strings are emitted once regardless of usage count.
+6. **Heap allocation for large arrays** — Class array fields >4KB use `malloc` instead of stack alloca.
+7. **JIT caching** — Bitcode is cached by source hash; unchanged files skip re-compilation.
+
+---
+
+## Compiler CLI
 
 ```bash
-pip install llvmlite
-```
-
-### Running a `.cstar` File
-
-```bash
-# Clone the repository
-git clone https://github.com/your-username/cstar.git
-cd cstar
-
-# Compile and JIT-execute a .cstar program
-python src/main.py examples/hello.cstar
-
-# Compile the MNIST benchmark
-python src/main.py examples/mnist_project/benchmark_fast.cstar
-
-# To regenerate the MNIST data files first:
-python examples/mnist_project/convert_data.py
-python src/main.py examples/mnist_project/benchmark_fast.cstar
-```
-
-The compiler will print each phase as it runs, display the full AST, emit LLVM IR to stdout, JIT-execute the program, and save a native `.obj` file to the `obj/` directory.
-
-```
---- Compiling examples/hello.cstar ---
-1. Lexing...
-2. Parsing...
-AST Generated Successfully
-
---- ABSTRACT SYNTAX TREE (AST) ---
-└── Program
-    └── Print
-        └── Value: StringNode (Hello, World!)
-----------------------------------
-
-3. Semantic Analysis...
-   -> Semantic analysis passed successfully
-4. Generating LLVM IR...
-; ModuleID = "cstar_module"
-...
-4. Generating LLVM IR done.
-Success! (Pipeline is completely wired up)
+python3 src/main.py <file.cstar>              # Compile + JIT + save .obj
+python3 src/main.py <file.cstar> --no-exec     # Compile only (skip JIT)
+python3 src/main.py <file.cstar> --ast         # Print the Abstract Syntax Tree
+python3 src/main.py <file.cstar> -O0           # No optimization
+python3 src/main.py <file.cstar> -O3           # Max optimization (default)
+python3 src/main.py <file.cstar> --clean-cache # Purge cached bitcode
 ```
 
 ---
 
 ## How It Works — The Compiler Pipeline
 
-Every `.cstar` file travels through five phases in order. Each phase has one job.
+Every `.cstar` file travels through five phases in order:
 
 ```
 C* Source Code
       │
       ▼
 ┌─────────────┐
-│   LEXER     │  Breaks raw text into a flat stream of typed Tokens
+│   LEXER     │  Breaks raw text into a stream of typed tokens
 └──────┬──────┘  (keywords, identifiers, operators, literals)
        │
        ▼
 ┌─────────────┐
 │   PARSER    │  Consumes tokens via recursive descent and builds
-└──────┬──────┘  an Abstract Syntax Tree (AST) of Python objects
+└──────┬──────┘  an Abstract Syntax Tree (AST) — with panic-mode recovery
        │
        ▼
 ┌──────────────────┐
 │ SEMANTIC ANALYZER│  Walks the AST: resolves scopes, checks types,
-└──────┬───────────┘  validates function signatures, reports errors
+└──────┬───────────┘  validates function signatures, applies promotions
        │
        ▼
 ┌─────────────────┐
-│  LLVM CODEGEN   │  Traverses the validated AST and emits
-└──────┬──────────┘  LLVM Intermediate Representation (IR)
+│  LLVM CODEGEN   │  Traverses the validated AST and emits LLVM IR
+└──────┬──────────┘  with fast-math, noalias, and readnone annotations
        │
        ▼
 ┌─────────────┐
-│  LLVM       │  Applies optimization passes and compiles IR to
-│  BACKEND    │  native x86-64 machine code ⚡
+│  LLVM       │  Applies -O3 optimization passes and JIT-compiles
+│  BACKEND    │  to native x86-64 machine code ⚡
 └─────────────┘
 ```
 
-**The frontend (Lexer → Semantic Analyzer) is written entirely in Python** — fast to develop, readable, and easy to extend. **The backend is LLVM**, accessed through the `llvmlite` Python bindings. We hand LLVM our IR and it applies the same optimization passes used by Clang, Rust, and Swift, then emits machine code for the target architecture.
-
-The division is intentional: we own the hard part (understanding C* syntax and semantics), and LLVM owns the other hard part (turning it into optimal machine code for every CPU on the planet).
+The frontend (Lexer → Semantic Analyzer) is ~2,500 lines of pure Python — no parser generators, no ANTLR. The backend is LLVM, accessed through the `llvmlite` Python bindings — the same optimization passes used by Clang, Rust, and Swift.
 
 ---
 
@@ -330,29 +308,51 @@ The division is intentional: we own the hard part (understanding C* syntax and s
 ```
 cstar/
 ├── src/
-│   ├── main.py           ← Entry point — wires the full pipeline
-│   ├── lexer.py          ← Tokenizer (hand-written, no regex)
-│   ├── tokens.py         ← TokenType enum + Token class
-│   ├── parser.py         ← Recursive descent parser + all AST nodes
-│   ├── semantic.py       ← Type checker, scope resolution, symbol table
-│   ├── codegen.py        ← LLVM IR generation via llvmlite
-│   ├── visualizer.py     ← ASCII AST printer for debugging
-│   ├── errors.py         ← Compiler error hierarchy
-│   ├── error_list.py     ← Error accumulator
-│   ├── lib_io.c          ← Native C extension for fast CSV loading
-│   └── lib_io.dll        ← Compiled shared library (Windows)
-│
-├── examples/
-│   └── mnist_project/
-│       ├── benchmark_fast.cstar   ← The neural network in C*
-│       ├── train_python.py        ← The identical Python benchmark
-│       ├── convert_data.py        ← Prepares flat CSV data files
-│       └── *.csv                  ← MNIST training/test data
-│
-├── obj/                  ← Compiled .obj files (generated at runtime)
-├── COMPILER_ARCHITECTURE.md
+│   ├── main.py           # CLI entry point (argparse + __name__ guard)
+│   ├── lexer.py          # Tokenizer with escape sequences
+│   ├── parser.py         # Pratt parser with panic-mode error recovery
+│   ├── semantic.py       # Type checker, symbol table, promotions
+│   ├── codegen.py        # LLVM IR generation (fast-math, noalias)
+│   ├── tokens.py         # Token type definitions
+│   ├── errors.py         # Error hierarchy with line:column
+│   ├── error_list.py     # Error accumulator
+│   ├── visualizer.py     # ASCII AST printer
+│   ├── lib_io.c          # C FFI: CSV loader, timer, thread pool
+│   └── lib_io.so / .dll  # Compiled shared library
+├── benchmarks/
+│   ├── benchmark_runner.py  # Multi-language benchmark suite
+│   └── matmul.cstar         # Matrix multiply benchmark (C*)
+├── examples/                # 14 example .cstar programs
+│   └── mnist_project/       # MNIST neural network + data
+├── obj/                     # Compiled .obj + cached bitcode
+├── setup.sh                 # Linux one-command setup
+├── setup.ps1                # Windows one-command setup
+├── .gitignore
 └── README.md
 ```
+
+---
+
+## Internals
+
+### C FFI (`src/lib_io.c`)
+
+The native C library exposes three functions callable from C*:
+
+| C Function | Used By | Purpose |
+|---|---|---|
+| `double get_time()` | `get_time()` builtin | Monotonic high-precision timer (nanosecond) |
+| `double* load_csv_native(char*, int)` | `load_csv()` builtin | Fast CSV parser via `fread` + `strtod` |
+| `void parallel_for(int, int, ...)` | — | pthread (Linux) / Windows Thread pool |
+
+Compiled with: `gcc -O3 -march=native -ffast-math -fPIC -shared -o lib_io.so lib_io.c -lm -lpthread`
+
+### Adding a New Built-in Function
+
+1. **`src/semantic.py`** — Add name + return type to the `BUILTINS` dictionary
+2. **`src/codegen.py`** — Declare the LLVM function in `__init__()`  
+3. **`src/codegen.py`** — Handle the call in `visit_Call()` before the generic function lookup
+4. Tag with `readnone` + `nounwind` attributes if the function has no side effects
 
 ---
 
@@ -365,10 +365,10 @@ It grew into something we're genuinely proud of, so we're releasing it under the
 **To contribute:**
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/new-language-feature`)
-3. Make your changes and add tests
+3. Make your changes and ensure all examples compile: `for f in examples/*.cstar; do python3 src/main.py "$f" --no-exec; done`
 4. Open a pull request with a description of what you built
 
-Areas where contributions are especially welcome: a `string` type in codegen, `>=` / `<=` in codegen, a standard library, improved error messages with source highlighting, and Linux/macOS shared library support for `lib_io`.
+Ideas for contributions: a standard library, better error messages with source code highlighting, generic type support, or a language server protocol (LSP) implementation.
 
 ---
 

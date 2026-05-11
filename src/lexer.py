@@ -121,23 +121,41 @@ class Lexer:
         return Token(TokenType.IDENTIFIER, value, start_line, start_column)
 
     
+    ESCAPE_MAP = {
+        "n": "\n",
+        "t": "\t",
+        r'"': '"',
+        "\\": "\\",
+    }
+
     def string(self):
         result = []
         append = result.append
 
-        self.advance()  # skip opening "
+        self.advance()
 
         start_line = self.line
         start_column = self.column
 
         while self.current_char is not None and self.current_char != '"':
-            append(self.current_char)
-            self.advance()
+            if self.current_char == "\\":
+                self.advance()
+                esc = self.current_char
+                if esc is None:
+                    raise LexerError("Unterminated escape sequence", self.line, self.column)
+                decoded = self.ESCAPE_MAP.get(esc)
+                if decoded is None:
+                    raise LexerError(f"Unknown escape sequence \\{esc}", self.line, self.column)
+                append(decoded)
+                self.advance()
+            else:
+                append(self.current_char)
+                self.advance()
 
         if self.current_char != '"':
             raise LexerError("Unterminated string literal", self.line, self.column)
 
-        self.advance()  
+        self.advance()
 
         value = "".join(result)
 
